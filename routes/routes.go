@@ -21,6 +21,7 @@ func SetupRoutes(r *gin.Engine) {
 	auth.Use(middleware.AuthRequired())
 	{
 		auth.GET("/products", handlers.GetProducts)
+		auth.GET("/products/low-stock", handlers.GetLowStockProducts)
 		auth.GET("/products/:id/transactions", handlers.GetProductTransactions)
 		auth.POST("/transactions", handlers.CreateTransaction)
 		auth.GET("/reports/stock-summary", handlers.GetStockSummary)

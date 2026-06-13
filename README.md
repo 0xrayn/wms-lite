@@ -25,7 +25,7 @@
 
 ## 📦 About
 
-**WMS (Warehouse Management System)** is a backend REST API for managing product inventory. The core focus of this project is **safe, atomic stock transactions** — every stock movement (IN/OUT) is processed inside a database transaction with **row-level locking (`SELECT ... FOR UPDATE`)** to prevent race conditions when multiple requests modify the same product's stock at the same time.
+**WMS (Warehouse Management System)** is a backend REST API for managing product inventory. The core focus of this project is **safe, atomic stock transactions** - every stock movement (IN/OUT) is processed inside a database transaction with **row-level locking (`SELECT ... FOR UPDATE`)** to prevent race conditions when multiple requests modify the same product's stock at the same time.
 
 This project is built as a backend portfolio piece to demonstrate:
 
@@ -82,40 +82,40 @@ wms/
 ├── handlers/
 │   ├── auth_handler.go         # register & login
 │   ├── product_handler.go      # product CRUD + history
-│   ├── transaction_handler.go  # ⭐ atomic stock transactions
+│   ├── transaction_handler.go  # atomic stock transactions
 │   └── report_handler.go       # stock summary report
 ├── routes/routes.go            # route definitions
-├── db/schema.sql                # reference only — see note below
+├── db/schema.sql                # reference only - see note below
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
 ```
 
-> **Note on `db/schema.sql`**: this file is kept purely as a **reference/documentation** of the database schema. The app does **not** execute it directly — table creation is handled automatically at startup via `RunMigrations()` in `config/database.go` (using `CREATE TABLE IF NOT EXISTS`, so it's safe to run on every start).
+> **Note on `db/schema.sql`**: this file is kept purely as a **reference/documentation** of the database schema. The app does **not** execute it directly - table creation is handled automatically at startup via `RunMigrations()` in `config/database.go` (using `CREATE TABLE IF NOT EXISTS`, so it's safe to run on every start).
 
 ---
 
 ## ⚙️ Getting Started
 
-### Option 1 — Run with Docker (recommended)
+### Option 1 - Run with Docker (recommended)
 
 This spins up both the API and PostgreSQL with a single command, no manual setup needed.
 
 ```bash
-git clone https://github.com/<your-username>/wms.git
-cd wms
+git clone https://github.com/0xrayn/wms-lite.git
+cd wms-lite
 docker-compose up --build
 ```
 
 The API will be available at `http://localhost:8080`. Tables are created automatically on startup.
 
-### Option 2 — Run locally
+### Option 2 - Run locally
 
 Requires Go 1.22+ and a running PostgreSQL instance.
 
 ```bash
-git clone https://github.com/<your-username>/wms.git
-cd wms
+git clone https://github.com/0xrayn/wms-lite.git
+cd wms-lite
 
 # Setup environment variables
 cp .env.example .env
@@ -163,8 +163,9 @@ POST /auth/login
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
 | POST | `/products` | Create a new product | Admin |
-| GET | `/products` | List all products | Required |
-| GET | `/products/:id/transactions` | Get stock movement history | Required |
+| GET | `/products` | List products (paginated, searchable) | Required |
+| GET | `/products/low-stock` | List products below a stock threshold | Required |
+| GET | `/products/:id/transactions` | Get stock movement history (paginated) | Required |
 
 **Create Product**
 ```json
@@ -176,6 +177,32 @@ Authorization: Bearer <token>
   "sku": "HDMI-001",
   "price": 35000
 }
+```
+
+**List Products**
+```
+GET /products?page=1&limit=10&search=hdmi
+Authorization: Bearer <token>
+```
+Response:
+```json
+{
+  "data": [ ... ],
+  "pagination": { "page": 1, "limit": 10, "total": 42 }
+}
+```
+
+**Low Stock Alert**
+```
+GET /products/low-stock?threshold=10&page=1&limit=10
+Authorization: Bearer <token>
+```
+Returns products where `current_stock` is below `threshold` (default: 10), ordered by stock ascending.
+
+**Transaction History**
+```
+GET /products/1/transactions?page=1&limit=10
+Authorization: Bearer <token>
 ```
 
 ### Stock Transactions
@@ -197,7 +224,7 @@ Authorization: Bearer <token>
 }
 ```
 
-> If `type` is `OUT` and `quantity` exceeds available stock, the request is rejected with `400 Bad Request` and the transaction is rolled back — no partial updates ever happen.
+> If `type` is `OUT` and `quantity` exceeds available stock, the request is rejected with `400 Bad Request` and the transaction is rolled back - no partial updates ever happen.
 
 ### Reports
 
@@ -208,18 +235,53 @@ Authorization: Bearer <token>
 
 ---
 
-## 🔒 Concurrency Safety — The Core of This Project
+## 🔒 Concurrency Safety - The Core of This Project
 
 The most important part of this codebase is `handlers/transaction_handler.go`. Every stock transaction follows this flow:
 
 1. **Begin** a database transaction
-2. **Lock** the product row with `SELECT ... FOR UPDATE` — any other transaction touching the same product must wait
+2. **Lock** the product row with `SELECT ... FOR UPDATE` - any other transaction touching the same product must wait
 3. **Validate** stock availability for `OUT` transactions
 4. **Update** the product's `current_stock`
 5. **Insert** a record into `stock_transactions` for audit history
-6. **Commit** — or roll back automatically if any step fails
+6. **Commit** - or roll back automatically if any step fails
 
 This guarantees that two simultaneous requests can never cause an inconsistent stock count.
+
+---
+
+## 🧪 Testing
+
+Unit tests for the transaction handler use [go-sqlmock](https://github.com/DATA-DOG/go-sqlmock) to mock the database, covering:
+
+- Stock IN success
+- Stock OUT success
+- Stock OUT rejected when stock is insufficient (rollback verified)
+- Product not found
+
+Run the tests with:
+
+```bash
+go test ./handlers/... -v
+```
+
+---
+
+## 📸 Demo
+
+Screenshots of the API tested via Postman:
+
+**Login & get JWT token**
+
+![Login response](./docs/screenshots/login.png)
+
+**Create stock transaction**
+
+![Create transaction](./docs/screenshots/transaction.png)
+
+**Stock summary report**
+
+![Stock summary](./docs/screenshots/stock-summary.png)
 
 ---
 
@@ -229,9 +291,9 @@ This guarantees that two simultaneous requests can never cause an inconsistent s
 - [x] Atomic stock transactions with row locking
 - [x] Auto-migration
 - [x] Dockerized setup
-- [ ] Pagination & filtering
-- [ ] Low-stock alert endpoint
-- [ ] Unit tests with sqlmock
+- [x] Pagination & filtering
+- [x] Low-stock alert endpoint
+- [x] Unit tests with sqlmock
 - [ ] Deploy to Railway/Render
 
 ---
