@@ -273,15 +273,15 @@ Screenshots of the API tested via Postman:
 
 **Login & get JWT token**
 
-![Login response](./docs/screenshots/login.png)
+![Login response](./docs/screenshots/login.jpg)
 
 **Create stock transaction**
 
-![Create transaction](./docs/screenshots/transaction.png)
+![Create transaction](./docs/screenshots/transaction.jpg)
 
 **Stock summary report**
 
-![Stock summary](./docs/screenshots/stock-summary.png)
+![Stock summary](./docs/screenshots/stock-summary.jpg)
 
 ---
 
