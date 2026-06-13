@@ -1,0 +1,372 @@
+{
+  "info": {
+    "name": "WMS API",
+    "description": "Warehouse Management System API - automated test collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "productId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"secret123\",\n  \"role\": \"admin\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 or 400 if already registered', function () {",
+                  "    pm.expect([201, 400]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@test.com\",\n  \"password\": \"secret123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has token', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.token).to.be.a('string');",
+                  "    pm.collectionVariables.set('token', json.token);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"HDMI Cable 2m\",\n  \"sku\": \"HDMI-{{$randomInt}}\",\n  \"price\": 35000\n}"
+            },
+            "url": "{{baseUrl}}/products"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has product id', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.id).to.be.a('number');",
+                  "    pm.collectionVariables.set('productId', json.id);",
+                  "});",
+                  "",
+                  "pm.test('Initial stock is 0', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.current_stock).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/products"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has data and pagination', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json.pagination).to.have.property('total');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Products with Pagination & Search",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/products?page=1&limit=2&search=hdmi"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returns at most 2 items', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.length).to.be.at.most(2);",
+                  "    pm.expect(json.pagination.limit).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Transactions",
+      "item": [
+        {
+          "name": "Stock IN",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{productId}},\n  \"type\": \"IN\",\n  \"quantity\": 10,\n  \"note\": \"Restock from supplier\"\n}"
+            },
+            "url": "{{baseUrl}}/transactions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('New stock is 10', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.new_stock).to.eql(10);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock OUT - Sufficient",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{productId}},\n  \"type\": \"OUT\",\n  \"quantity\": 3,\n  \"note\": \"Sale\"\n}"
+            },
+            "url": "{{baseUrl}}/transactions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('New stock is 7', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.new_stock).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock OUT - Insufficient (should fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": {{productId}},\n  \"type\": \"OUT\",\n  \"quantity\": 9999,\n  \"note\": \"Test insufficient stock\"\n}"
+            },
+            "url": "{{baseUrl}}/transactions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error message mentions stock', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.error).to.eql('Stok tidak cukup');",
+                  "});",
+                  "",
+                  "pm.test('Stock is unchanged (rollback worked)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.current_stock).to.eql(7);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Transaction History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/products/{{productId}}/transactions"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('History has 2 records (IN and OUT)', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.length).to.eql(2);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "item": [
+        {
+          "name": "Low Stock Products",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/products/low-stock?threshold=10"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Threshold reflected in response', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.threshold).to.eql(10);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stock Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": "{{baseUrl}}/reports/stock-summary"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/health"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status is 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

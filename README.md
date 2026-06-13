@@ -85,13 +85,13 @@ wms/
 │   ├── transaction_handler.go  # atomic stock transactions
 │   └── report_handler.go       # stock summary report
 ├── routes/routes.go            # route definitions
-├── db/schema.sql                # reference only - see note below
+├── postman/                     # Postman collection for testing
 ├── Dockerfile
 ├── docker-compose.yml
 └── README.md
 ```
 
-> **Note on `db/schema.sql`**: this file is kept purely as a **reference/documentation** of the database schema. The app does **not** execute it directly - table creation is handled automatically at startup via `RunMigrations()` in `config/database.go` (using `CREATE TABLE IF NOT EXISTS`, so it's safe to run on every start).
+> **Note on database schema**: tables are created automatically at startup via `RunMigrations()` in `config/database.go` (using `CREATE TABLE IF NOT EXISTS`), so no separate schema file or manual `psql` step is needed.
 
 ---
 
